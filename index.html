@@ -15,19 +15,19 @@
   :root {
     --bg: #f3f4f1; --panel: #ffffff; --fg: #17201c; --line: #b9c0ba; --accent: #8a4b16;
     --accent-ink: #ffffff; --hover: #eef0ea; --note-bg: #fff4d6;
-    --metal: #d2331f; --nonmetal: #1f78c8; --fuel: #e2a400; --stroke: #ffffff;
+    --metal: #d2331f; --nonmetal: #1f78c8; --fuel: #e2a400; --stroke: #ffffff; --mrds: #5b2c91;
     --font-ui: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", sans-serif;
     --font-num: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       --bg: #141816; --panel: #1d2320; --fg: #e8ece9; --line: #4a544e; --accent: #e09a5c;
-      --accent-ink: #141816; --hover: #29302c; --note-bg: #3a3218; color-scheme: dark;
+      --accent-ink: #141816; --hover: #29302c; --note-bg: #3a3218; --mrds: #9b6ad6; color-scheme: dark;
     }
   }
   :root[data-theme="dark"] {
     --bg: #141816; --panel: #1d2320; --fg: #e8ece9; --line: #4a544e; --accent: #e09a5c;
-    --accent-ink: #141816; --hover: #29302c; --note-bg: #3a3218; color-scheme: dark;
+    --accent-ink: #141816; --hover: #29302c; --note-bg: #3a3218; --mrds: #9b6ad6; color-scheme: dark;
   }
   html, body { height: 100%; margin: 0; }
   body { background: var(--bg); color: var(--fg); font: 14px/1.5 var(--font-ui); }
@@ -64,6 +64,10 @@
   .sw { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--stroke); box-shadow: 0 0 0 1px var(--fg); flex: none; }
   .major svg { display: block; overflow: visible; filter: drop-shadow(0 0 1px rgba(0,0,0,.6)); }
   .legend-star { width: 16px; height: 16px; flex: none; }
+  .mrds-sq { box-sizing: border-box; background: var(--mrds); border: 2px solid var(--stroke); box-shadow: 0 0 0 1px #000; }
+  .mrds-sq.sig { outline: 2px solid var(--mrds); outline-offset: 2px; }
+  .sqlg { display: inline-block; flex: none; }
+  .pop .near button { all: unset; cursor: pointer; color: var(--accent); text-decoration: underline; }
   #results { display: grid; gap: 2px; max-height: 220px; overflow-y: auto; }
   #results button { all: unset; cursor: pointer; padding: 3px 6px; border-radius: 3px; font-size: 13px; }
   #results button:hover, #results button:focus-visible { background: var(--hover); }
@@ -125,9 +129,27 @@
       </div>
     </details>
     <details>
+      <summary>MRDS（USGS）の鉱山<span class="cur" id="mrdsCur"></span></summary>
+      <div class="body">
+        <label class="opt"><input type="checkbox" id="mrdsOn" checked> MRDS の点を重ねる（紫の四角）</label>
+        <div class="group">開発状況</div>
+        <label class="opt"><input type="checkbox" id="ds_Producer" checked> 生産中（登録時） <small id="n_ds_Producer"></small></label>
+        <label class="opt"><input type="checkbox" id="ds_PastProducer" checked> 過去に生産 <small id="n_ds_PastProducer"></small></label>
+        <label class="opt"><input type="checkbox" id="ds_Prospect" checked> 探鉱 <small id="n_ds_Prospect"></small></label>
+        <label class="opt"><input type="checkbox" id="ds_Occurrence" checked> 鉱徴 <small id="n_ds_Occurrence"></small></label>
+        <label class="opt"><input type="checkbox" id="ds_Unknown" checked> 不明 <small id="n_ds_Unknown"></small></label>
+        <label class="opt"><input type="checkbox" id="ds_Plant"> 製錬所・選鉱場などの工場 <small id="n_ds_Plant"></small></label>
+        <label class="opt"><input type="checkbox" id="mrdsSized"> 規模の情報がある点だけ <small id="n_sized"></small></label>
+        <div class="group">記号の大きさ = 生産規模（prod_size）</div>
+        <div class="opt"><span class="sqlg mrds-sq" style="width:18px;height:18px"></span> 大 <span class="sqlg mrds-sq" style="width:14px;height:14px;margin-left:8px"></span> 中 <span class="sqlg mrds-sq" style="width:11px;height:11px;margin-left:8px"></span> 小 <span class="sqlg mrds-sq" style="width:8px;height:8px;margin-left:8px"></span> 記載なし・生産の有無のみ</div>
+        <div class="opt"><span class="sqlg mrds-sq sig" style="width:11px;height:11px;margin:3px"></span> 二重枠 = 世界的に重要な鉱床（sig）</div>
+        <div class="note">MRDS は米国地質調査所の世界の鉱物資源データベースです（2019年3月の抽出）。規模の大・中・小の基準は記録されていません。産総研の点とは統合せず、ポップアップに 2 km 以内の産総研の点を示します。</div>
+      </div>
+    </details>
+    <details>
       <summary>鉱山名で探す</summary>
       <div class="body">
-        <label for="q" class="group">鉱山名・鉱種（例: 尾去沢、別子、マンガン）</label>
+        <label for="q" class="group">鉱山名・鉱種（例: 尾去沢、別子、マンガン、Kamioka）</label>
         <input type="search" id="q" placeholder="名前を入力" autocomplete="off">
         <div id="results" role="list"></div>
       </div>
@@ -138,6 +160,7 @@
         <div>鉱山の位置は、産総研 地質調査総合センターの「国内の鉱床・鉱徴地に関する位置データ集（第2版）」です。地質図幅に描かれた鉱床記号の中心の緯度経度で、記号の大きさ（紙面で約 2 mm）より細かい精度はありません。20 万分の 1 の図幅では地上で約 400 m、5 万分の 1 では約 100 m に当たります。</div>
         <div>同じ鉱山が縮尺の違う複数の図幅に載っていると、点も複数になります。鉱種と凡例は図幅に書かれたままで、図幅の出版後の稼行状況は反映していません。</div>
         <div>出典: 内藤一樹（2017）国内の鉱床・鉱徴地に関する位置データ集（第2版）. 地質調査総合センター速報 no.73（データ 2025年12月15日更新）. <a href="https://www.gsj.jp/publications/pub/prompt-rep/index.html" target="_blank" rel="noopener">産総研 地質調査総合センター</a>. 政府標準利用規約（第2.0版）に従って加工して表示しています。</div>
+        <div>MRDS の点: U.S. Geological Survey, <a href="https://mrdata.usgs.gov/mrds/" target="_blank" rel="noopener">Mineral Resources Data System</a>（2019年3月6日の抽出、国名が Japan の 415 件）。利用制限はありません。</div>
         <div>背景: <a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院 地理院タイル</a>（空中写真、全国最新写真（シームレス）、陰影起伏図、色別標高図、淡色地図、標準地図）。</div>
       </div>
     </details>
@@ -148,7 +171,7 @@
 <script>
 "use strict";
 const GSI = (layer, ext) => `https://cyberjapandata.gsi.go.jp/xyz/${layer}/{z}/{x}/{y}.${ext}`;
-const ATTR = '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a> ／ 鉱山: <a href="https://www.gsj.jp/publications/pub/prompt-rep/index.html" target="_blank" rel="noopener">産総研 GSJ 速報 no.73</a>';
+const ATTR = '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a> ／ 鉱山: <a href="https://www.gsj.jp/publications/pub/prompt-rep/index.html" target="_blank" rel="noopener">産総研 GSJ 速報 no.73</a>, <a href="https://mrdata.usgs.gov/mrds/" target="_blank" rel="noopener">USGS MRDS</a>';
 // background choices; past photos exist at zoom 10-17 only
 const BASES = [
   { group: "過去の航空写真", id: "gazo1", label: "1974〜1978 年", layer: "gazo1", ext: "jpg", min: 10, max: 17, photo: true },
@@ -297,11 +320,76 @@ function counts() {
   for (const k of [1, 2, 3]) $(`n_c${k}`).textContent = n(r => r[4] === k);
   $("n_major").textContent = n(r => r[3] === MAJOR);
 }
+// ---------------------------------------------------------------- MRDS layer
+let M = null, mlayer = L.layerGroup().addTo(map);
+const DS = { "Producer": "生産中（登録時）", "Past Producer": "過去に生産", "Prospect": "探鉱", "Occurrence": "鉱徴",
+             "Unknown": "不明", "Plant": "製錬所・工場" };
+const PS = { L: "大", M: "中", S: "小", Y: "生産あり（規模の記載なし）", N: "生産なし", U: "不明", "": "記載なし" };
+const DSZ = { L: "大", M: "中", S: "小", "": "記載なし" };
+const dsId = s => `ds_${s.replace(/ /g, "")}`;
+const sized = r => ["L", "M", "S"].includes(r[4]) || r[5] !== "" || r[6] === "Y" || r[9] !== null;
+function sqIcon(r) {
+  const z = map.getZoom(), k = z <= 6 ? 0.6 : z <= 9 ? 0.8 : z >= 12 ? 1.25 : 1;
+  const s = Math.max(6, Math.round(({ L: 18, M: 14, S: 11 }[r[4]] || 8) * k));
+  return L.divIcon({ className: "", iconSize: [s, s], iconAnchor: [s / 2, s / 2],
+    html: `<div class="mrds-sq${r[6] === "Y" ? " sig" : ""}" style="width:${s}px;height:${s}px"></div>` });
+}
+function mrdsPopup(r) {
+  const [depId, name, ds, com, ps, dsz, sig, y0, y1, res, other, url, lat, lon, near] = r;
+  const nearHtml = near.length ? near.map(([i, dm]) => { const g = D.rows[i];
+      return `<li><button type="button" data-g="${i}">${esc(g[1] || "（名称なし）")} ${esc(g[2])}</button> ${dm.toLocaleString("ja-JP")} m</li>`; }).join("")
+    : "<li>2 km 以内にありません</li>";
+  return `<div class="pop"><h3>${esc(name)}</h3><dl>
+    ${other.length ? `<dt>別名</dt><dd>${esc(other.join("、"))}</dd>` : ""}
+    <dt>出典</dt><dd>USGS MRDS</dd>
+    <dt>開発状況</dt><dd>${DS[ds] || esc(ds)}</dd>
+    <dt>鉱種</dt><dd>${esc(com)}</dd>
+    <dt>生産規模</dt><dd>${PS[ps] ?? esc(ps)}</dd>
+    <dt>鉱床規模</dt><dd>${DSZ[dsz] ?? esc(dsz)}</dd>
+    <dt>世界的に重要</dt><dd>${sig === "Y" ? "はい" : sig === "N" ? "いいえ" : "記載なし"}</dd>
+    ${res ? `<dt>総資源量</dt><dd class="num">${res[0].toLocaleString("ja-JP")} ${esc(res[1])}（${esc(res[2])}年）</dd>` : ""}
+    ${y0 ? `<dt>生産開始</dt><dd class="num">${esc(y0)}年</dd>` : ""}
+    <dt>位置</dt><dd class="num">${lat.toFixed(5)}, ${lon.toFixed(5)}</dd></dl>
+    <div class="group" style="margin-top:6px">2 km 以内の産総研の点</div><ul class="near" style="margin:2px 0 4px;padding-left:18px">${nearHtml}</ul>
+    <a href="${esc(url)}" target="_blank" rel="noopener">MRDS の記録を開く</a>（ID ${esc(depId)}）</div>`;
+}
+function openGsj(i) {
+  const g = D.rows[i]; map.setView([g[8], g[9]], Math.max(map.getZoom(), 14));
+  L.popup({ maxWidth: 300 }).setLatLng([g[8], g[9]]).setContent(popupHtml(g)).openOn(map);
+}
+map.on("popupopen", e => { e.popup.getElement().querySelectorAll("button[data-g]").forEach(b => b.onclick = () => openGsj(+b.dataset.g)); });
+function drawMrds() {
+  mlayer.clearLayers(); if (!M) return;
+  let n = 0;
+  if ($("mrdsOn").checked) {
+    const on = new Set(Object.keys(DS).filter(s => $(dsId(s)).checked)), only = $("mrdsSized").checked;
+    for (const r of M.rows) {
+      if (!on.has(r[2]) || (only && !sized(r))) continue;
+      const m = L.marker([r[12], r[13]], { icon: sqIcon(r), keyboard: false, zIndexOffset: 500 });
+      m.bindPopup(() => mrdsPopup(r), { maxWidth: 320 }); m.bindTooltip(r[1], { direction: "top", offset: [0, -6] });
+      m._r = r; mlayer.addLayer(m); n++;
+    }
+  }
+  $("mrdsCur").textContent = $("mrdsOn").checked ? `${n} 点` : "非表示";
+}
+map.on("zoomend", () => mlayer.eachLayer(m => m.setIcon(sqIcon(m._r))));
 function search() {
   const q = $("q").value.trim(), box = $("results"); box.innerHTML = "";
   if (!q) return;
+  const ql = q.toLowerCase();
+  const mh = M ? M.rows.filter(r => r[1].toLowerCase().includes(ql) || r[10].some(x => x.toLowerCase().includes(ql))).slice(0, 20) : [];
+  for (const r of mh) {
+    const b = document.createElement("button"); b.type = "button"; b.setAttribute("role", "listitem");
+    b.textContent = `［MRDS］${r[1]}　${DS[r[2]] || r[2]}`;
+    b.onclick = () => {
+      map.setView([r[12], r[13]], 14);
+      L.popup({ maxWidth: 320 }).setLatLng([r[12], r[13]]).setContent(mrdsPopup(r)).openOn(map);
+      if (matchMedia("(max-width: 600px)").matches) setPanel(false);
+    };
+    box.append(b);
+  }
   const hits = D.rows.filter(r => r[1].includes(q) || r[2].includes(q)).slice(0, 60);
-  if (!hits.length) { box.textContent = "見つかりません。漢字の表記を変えて試してください。"; return; }
+  if (!hits.length && !mh.length) { box.textContent = "見つかりません。漢字の表記を変えるか、ローマ字（MRDS）で試してください。"; return; }
   for (const r of hits) {
     const b = document.createElement("button"); b.type = "button"; b.setAttribute("role", "listitem");
     b.textContent = `${r[1] || "（名称なし）"}　${r[2]}　${D.maps[r[7]][0].replace(/地質図幅/, "")}`;
@@ -336,7 +424,14 @@ fetch("mines.json").then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); 
   counts(); draw();
   for (const id of ["w2", "w1", "w0", "wm1", "c1", "c2", "c3"]) $(id).onchange = draw;
   $("q").oninput = search;
-}).catch(e => { $("count").textContent = `鉱山データを読めませんでした（${e.message}）。ページを再読み込みしてください。`; });
+  return fetch("mrds.json").then(r => { if (!r.ok) throw new Error(`MRDS: HTTP ${r.status}`); return r.json(); }).then(m => {
+    M = m;
+    for (const s of Object.keys(DS)) $(`n_${dsId(s)}`).textContent = M.rows.filter(r => r[2] === s).length;
+    $("n_sized").textContent = M.rows.filter(sized).length;
+    for (const id of ["mrdsOn", "mrdsSized", ...Object.keys(DS).map(dsId)]) $(id).onchange = drawMrds;
+    drawMrds();
+  });
+}).catch(e => { $("count").textContent = `データを読めませんでした（${e.message}）。ページを再読み込みしてください。`; });
 </script>
 </body>
 </html>
