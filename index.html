@@ -62,6 +62,8 @@
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .note { background: var(--note-bg); border-radius: 4px; padding: 6px 8px; font-size: 12px; }
   .sw { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--stroke); box-shadow: 0 0 0 1px var(--fg); flex: none; }
+  .major svg { display: block; overflow: visible; filter: drop-shadow(0 0 1px rgba(0,0,0,.6)); }
+  .legend-star { width: 16px; height: 16px; flex: none; }
   #results { display: grid; gap: 2px; max-height: 220px; overflow-y: auto; }
   #results button { all: unset; cursor: pointer; padding: 3px 6px; border-radius: 3px; font-size: 13px; }
   #results button:hover, #results button:focus-visible { background: var(--hover); }
@@ -118,6 +120,8 @@
         <label class="opt"><input type="checkbox" id="c1" checked><span class="sw" style="background:var(--metal)"></span> 金属鉱物 <small id="n_c1"></small></label>
         <label class="opt"><input type="checkbox" id="c2" checked><span class="sw" style="background:var(--nonmetal)"></span> 非金属鉱物 <small id="n_c2"></small></label>
         <label class="opt"><input type="checkbox" id="c3" checked><span class="sw" style="background:var(--fuel)"></span> 燃料鉱物（石炭・石油・ガス） <small id="n_c3"></small></label>
+        <div class="group">記号</div>
+        <div class="opt"><svg class="legend-star" viewBox="-10 -10 20 20" aria-hidden="true"><path id="legendStar" fill="var(--fg)" stroke="var(--stroke)" stroke-width="1.6"/></svg> 主要鉱産地（図幅の凡例が「主要鉱産地」の点。色は区分） <small>全 <span id="n_major"></span> 点</small></div>
       </div>
     </details>
     <details>
@@ -167,7 +171,11 @@ const OVERLAYS = [
 const WORK = { 2: "採掘歴あり（出典図幅の記載）", 1: "採掘歴あり（他の縮尺の図幅の記載）",
                0: "図幅の記載からは判断できない", "-1": "採掘歴なし（出典図幅の記載）" };
 const CAT = { 1: ["金属鉱物", "--metal"], 2: ["非金属鉱物", "--nonmetal"], 3: ["燃料鉱物", "--fuel"] };
+const MAJOR = "主要鉱産地";        // legend_name drawn as a star instead of a dot
+const STAR = (() => { const p = []; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 4.2 : 10;
+  p.push(`${(r * Math.cos(a)).toFixed(2)},${(r * Math.sin(a)).toFixed(2)}`); } return "M" + p.join("L") + "Z"; })();
 const $ = id => document.getElementById(id);
+$("legendStar").setAttribute("d", STAR);
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* storage unavailable */ } }
@@ -237,8 +245,13 @@ function buildOverList() {
 }
 
 // ---------------------------------------------------------------- mines
-let D = null, pts = [], layer = L.layerGroup().addTo(map);
+let D = null, pts = [], stars = [], layer = L.layerGroup().addTo(map);
 const renderer = L.canvas({ padding: 0.3 });
+function starIcon(cat) {
+  const s = Math.max(18, Math.round(radius() * 5));
+  return L.divIcon({ className: "major", iconSize: [s, s], iconAnchor: [s / 2, s / 2],
+    html: `<svg width="${s}" height="${s}" viewBox="-10 -10 20 20"><path d="${STAR}" fill="${css(CAT[cat][1])}" stroke="${css("--stroke")}" stroke-width="1.6"/></svg>` });
+}
 function radius() { const z = map.getZoom(); return z <= 6 ? 2.5 : z <= 9 ? 3.5 : z <= 12 ? 5 : 7; }
 function popupHtml(r) {
   const [id, name, minj, legend, cat, , work, mi, lat, lon] = r;
@@ -260,25 +273,29 @@ function filters() {
   return { w, c };
 }
 function draw() {
-  layer.clearLayers(); pts = [];
+  layer.clearLayers(); pts = []; stars = [];
   const { w, c } = filters(), rad = radius(), stroke = css("--stroke");
   for (const r of D.rows) {
     if (!w.has(r[6]) || !c.has(r[4])) continue;
-    const m = L.circleMarker([r[8], r[9]], { renderer, radius: rad, weight: 1.5, color: stroke,
-      fillColor: css(CAT[r[4]][1]), fillOpacity: .95 });
+    const major = r[3] === MAJOR;
+    const m = major
+      ? L.marker([r[8], r[9]], { icon: starIcon(r[4]), keyboard: false, zIndexOffset: 1000 })
+      : L.circleMarker([r[8], r[9]], { renderer, radius: rad, weight: 1.5, color: stroke,
+          fillColor: css(CAT[r[4]][1]), fillOpacity: .95 });
     m.bindPopup(() => popupHtml(r), { maxWidth: 300 });
     m.bindTooltip(r[1] || r[2], { direction: "top", offset: [0, -4] });
-    layer.addLayer(m); pts.push(m);
+    layer.addLayer(m); (major ? stars : pts).push([m, r[4]]);
   }
-  $("count").textContent = `${pts.length.toLocaleString("ja-JP")} 点を表示`;
+  $("count").textContent = `${(pts.length + stars.length).toLocaleString("ja-JP")} 点を表示`;
   lsSet("filters", JSON.stringify({ w: [...w], c: [...c] }));
 }
-function restyle() { const r = radius(); for (const m of pts) m.setRadius(r); }
+function restyle() { const r = radius(); for (const [m] of pts) m.setRadius(r); for (const [m, c] of stars) m.setIcon(starIcon(c)); }
 function counts() {
   const n = (f) => D.rows.filter(f).length.toLocaleString("ja-JP");
   $("n_w2").textContent = n(r => r[6] === 2); $("n_w1").textContent = n(r => r[6] === 1);
   $("n_w0").textContent = n(r => r[6] === 0); $("n_wm1").textContent = n(r => r[6] === -1);
   for (const k of [1, 2, 3]) $(`n_c${k}`).textContent = n(r => r[4] === k);
+  $("n_major").textContent = n(r => r[3] === MAJOR);
 }
 function search() {
   const q = $("q").value.trim(), box = $("results"); box.innerHTML = "";
