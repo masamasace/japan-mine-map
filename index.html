@@ -83,6 +83,10 @@
   .pop dt { font-weight: 700; } .pop dd { margin: 0; }
   .pop .num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
   .pop a { color: var(--accent); }
+  .pop.coord .num { user-select: text; -webkit-user-select: text; }
+  .pop.coord button { font: inherit; font-size: 13px; margin-top: 6px; padding: 2px 10px; cursor: pointer;
+    border: 1px solid var(--line); border-radius: 4px; background: var(--panel); color: var(--fg); }
+  .pop.coord button:hover, .pop.coord button:focus-visible { background: var(--hover); }
   .leaflet-control-attribution { font-size: 11px; }
   @media (max-width: 600px) {
     #panel { left: max(8px, env(safe-area-inset-left, 0px)); right: max(8px, env(safe-area-inset-right, 0px)); width: auto; top: auto;
@@ -358,6 +362,23 @@ function openGsj(i) {
   L.popup({ maxWidth: 300 }).setLatLng([g[8], g[9]]).setContent(popupHtml(g)).openOn(map);
 }
 map.on("popupopen", e => { e.popup.getElement().querySelectorAll("button[data-g]").forEach(b => b.onclick = () => openGsj(+b.dataset.g)); });
+map.on("contextmenu", e => {
+  const lat = e.latlng.lat.toFixed(6), lon = e.latlng.lng.toFixed(6);
+  L.popup({ maxWidth: 300 }).setLatLng(e.latlng).setContent(
+    `<div class="pop coord"><div class="num">緯度 ${lat}, 経度 ${lon}</div>` +
+    `<button type="button" data-copy="${lat}, ${lon}">コピー</button></div>`).openOn(map);
+});
+map.on("popupopen", e => {
+  e.popup.getElement().querySelectorAll(".pop.coord button[data-copy]").forEach(b => b.onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(b.dataset.copy);
+      b.textContent = "コピーしました";
+      setTimeout(() => { b.textContent = "コピー"; }, 2000);
+    } catch (err) {
+      b.textContent = "コピーできません。値を選択してコピーしてください";
+    }
+  });
+});
 function drawMrds() {
   mlayer.clearLayers(); if (!M) return;
   let n = 0;
